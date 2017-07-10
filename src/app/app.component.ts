@@ -10,15 +10,17 @@ import { Result } from "app/CognitiveServiceResult";
 })
 export class AppComponent implements OnInit {
   @ViewChild("fileInput") fileInput;
-  @ViewChild("imageCanvas") imageCanvas : HTMLCanvasElement;
+  @ViewChild("imageCanvas") imageCanvas : any;
   private fileData: any;
   public ImageData: string;
   public ImageResult: Result[];
+  private ctx: any;
 
   constructor(private http: Http) {
   }
 
   ngOnInit() {    
+    this.ctx = this.imageCanvas.nativeElement.getContext("2d");
   }
 
   changeListener($event) : void {
@@ -28,89 +30,82 @@ export class AppComponent implements OnInit {
   readThis(inputValue: any) : void {
     var file:File = inputValue.files[0]; 
     var arrayReader:FileReader = new FileReader();
-    var base64Reader:FileReader = new FileReader();
-
     arrayReader.onloadend = function(e){
-      console.log(arrayReader.result);
       this.fileData = arrayReader.result;
     }.bind(this);
-    base64Reader.onloadend = function(e) {
-      this.ImageData = base64Reader.result;
-      this.imageCanvas = new HTMLCanvasElement();
-      let ctx = this.imageCanvas.getContext("2d");
-      ctx.drawImage(this.ImageData, 0, 0, this.imageCanvas.width, this.imageCanvas.height);
-    }.bind(this);
-
     arrayReader.readAsArrayBuffer(file);
+
+    var base64Reader:FileReader = new FileReader();
+    base64Reader.onloadend = function(e) {      
+      this.ImageData = base64Reader.result;
+      let img = new Image();
+      img.src= this.ImageData;
+      img.onload = function(i){
+        this.clearCanvas();
+        this.imageCanvas.width = img.width;
+        this.imageCanvas.height = img.height;
+        this.ctx.drawImage(img, 0, 0, img.width, img.height);  
+      }.bind(this);      
+    }.bind(this);    
     base64Reader.readAsDataURL(file);
   }
+ 
 
   checkFace(){
-    
     let url = "https://westus.api.cognitive.microsoft.com/emotion/v1.0/recognize";
     let h = new Headers();
     h.append('Ocp-Apim-Subscription-Key', 'b05b8ea4db3b4db08e799ba8c6cdc6f8');
     h.append('Content-Type', 'application/octet-stream');
     this.http.post(url, this.fileData, {headers: h})
         .subscribe(
-          res => { 
+          res => {            
             this.ImageResult = [];
             let result = res.json();
-            result.forEach(imageResult => {
-               if(imageResult.scores.anger < 0.01){
-                imageResult.scores.anger = 0;
-              } else{
-                imageResult.scores.anger = imageResult.scores.anger * 100;
-              }
+            result.forEach(iR => {
+              iR.scores.anger = this.getPercentageValues(iR.scores.anger);
+              iR.scores.contempt = this.getPercentageValues(iR.scores.contempt);
+              iR.scores.disgust = this.getPercentageValues(iR.scores.disgust);
+              iR.scores.fear = this.getPercentageValues(iR.scores.fear);
+              iR.scores.happiness = this.getPercentageValues(iR.scores.happiness);
+              iR.scores.neutral = this.getPercentageValues(iR.scores.neutral);
+              iR.scores.sadness = this.getPercentageValues(iR.scores.sadness);
+              iR.scores.surprise = this.getPercentageValues(iR.scores.surprise);
 
-              if(imageResult.scores.contempt < 0.01){
-                imageResult.scores.contempt = 0;
-              } else{
-                imageResult.scores.contempt = imageResult.scores.contempt * 100;
-              }
-
-              if(imageResult.scores.disgust < 0.01){
-                imageResult.scores.disgust = 0;
-              } else{
-                imageResult.scores.disgust = imageResult.scores.disgust * 100;
-              }
-
-              if(imageResult.scores.fear < 0.01){
-                imageResult.scores.fear = 0;
-              } else{
-                imageResult.scores.fear = imageResult.scores.fear * 100;
-              }
-
-              if(imageResult.scores.happiness < 0.01){
-                imageResult.scores.happiness = 0;
-              } else{
-                imageResult.scores.happiness = imageResult.scores.happiness * 100;
-              }
-
-              if(imageResult.scores.neutral < 0.01){
-                imageResult.scores.neutral = 0;
-              } else{
-                imageResult.scores.neutral = imageResult.scores.neutral * 100;
-              }
-
-              if(imageResult.scores.sadness < 0.01){
-                imageResult.scores.sadness = 0;
-              } else{
-                imageResult.scores.sadness = imageResult.scores.sadness * 100;
-              }
-
-              if(imageResult.scores.surprise < 0.01){
-                imageResult.scores.surprise = 0;
-              } else{
-                imageResult.scores.surprise = imageResult.scores.surprise * 100;
-              }
-
-              this.ImageResult.push(imageResult);
+              this.ImageResult.push(iR);
+              this.drawRectangle(iR);
             });           
           },
           err => {
             console.log(err.json())
           }
         );             
+  }
+
+  private getPercentageValues(value: number): number{
+    if(value < 0.01)
+      return 0;
+    return value * 100;
+  }
+
+  private clearCanvas(){
+    this.ctx.clearRect(0, 0, this.imageCanvas.width, this.imageCanvas.height);
+  }
+
+  private drawRectangle(iR: Result){
+    this.ctx.beginPath();
+    this.ctx.strokeStyle= 'red';
+    this.ctx.lineWidth='2';
+    this.ctx.rect(iR.faceRectangle.left, iR.faceRectangle.top, iR.faceRectangle.width, iR.faceRectangle.height);
+    this.ctx.stroke();
+  }
+  private setResultValues(iR: Result){
+      iR.scores.anger = this.getPercentageValues(iR.scores.anger);
+      iR.scores.contempt = this.getPercentageValues(iR.scores.contempt);
+      iR.scores.disgust = this.getPercentageValues(iR.scores.disgust);
+      iR.scores.fear = this.getPercentageValues(iR.scores.fear);
+      iR.scores.happiness = this.getPercentageValues(iR.scores.happiness);
+      iR.scores.neutral = this.getPercentageValues(iR.scores.neutral);
+      iR.scores.sadness = this.getPercentageValues(iR.scores.sadness);
+      iR.scores.surprise = this.getPercentageValues(iR.scores.surprise);      
   }
 }
