@@ -42,8 +42,8 @@ export class AppComponent implements OnInit {
       img.src= this.ImageData;
       img.onload = function(i){
         this.clearCanvas();
-        this.imageCanvas.width = img.width;
-        this.imageCanvas.height = img.height;
+        this.imageCanvas.nativeElement.width = img.width;
+        this.imageCanvas.nativeElement.height = img.height;
         this.ctx.drawImage(img, 0, 0, img.width, img.height);  
       }.bind(this);      
     }.bind(this);    
